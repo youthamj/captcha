@@ -55,8 +55,19 @@ class _Captcha(object):
         :param output: output destination.
         :param format: image file format
         """
-        im = self.generate_image(chars)
+        obj = self.generate_image(chars)
+        im = obj['final']
         return im.save(output, format=format)
+
+    def generate_with_boxes(self, chars):
+        """Generate and returns an image CAPTCHA  with its data in a dict.
+        dict['final'] --> the image itself
+        dict['bboxes'] --> a tuple for each bounding box in the form (character, x1, y1, width, height) of each bbox
+        dict['final_with_boxes'] --> the image itself but with bounding boxes drawn around characters
+        :param chars: text to be generated.
+        """
+        obj = self.generate_image(chars)
+        return obj
 
 
 class WheezyCaptcha(_Captcha):
@@ -148,7 +159,7 @@ class ImageCaptcha(_Captcha):
             number -= 1
         return image
 
-    def create_captcha_image(self, chars, color, background):
+    def create_captcha_image(self, chars, color, background, for_training=True):
         """Create the CAPTCHA image itself.
 
         :param chars: text to be generated.
@@ -190,46 +201,89 @@ class ImageCaptcha(_Captcha):
             )
             im = im.resize((w2, h2))
             im = im.transform((w, h), Image.QUAD, data)
+            # print(x1, y1, x2, y2, w, h, w2, h2)
             return im
 
         images = []
+        actual_char_inds = []
+        ind = 0
         for c in chars:
             if random.random() > 0.5:
-                images.append(_draw_character(" "))
-            images.append(_draw_character(c))
+                images.append((' ', _draw_character(" ")))
+                ind += 1
+            actual_char_inds.append(ind)
+            ind += 1
+            images.append((c, _draw_character(c)))
 
-        text_width = sum([im.size[0] for im in images])
+        text_width = sum([im.size[0] for _, im in images])
 
         width = max(text_width, self._width)
         image = image.resize((width, self._height))
+        if for_training:
+            return_obj = {"char_onlys": [], "final": None, "bboxes":[]}
+            blank = Image.new('RGB', (width, self._height), (255,255,255))
 
         average = int(text_width / len(chars))
         rand = int(0.25 * average)
         offset = int(average * 0.1)
-
-        for im in images:
+        image_with_boxes = image.copy()
+        for i, (c, im) in enumerate(images):
             w, h = im.size
             mask = im.convert('L').point(table)
-            image.paste(im, (offset, int((self._height - h) / 2)), mask)
+            upper_left = (offset, int((self._height - h) / 2))
+            upper_left_x, upper_left_y = upper_left
+            
+            if i in actual_char_inds and for_training:
+                char_only_im = blank.copy()
+                char_only_im.paste(im, upper_left, mask) 
+                return_obj["char_onlys"].append(char_only_im)
+            
+            image.paste(im, upper_left, mask)
+            image_with_boxes.paste(im, upper_left, mask)
+            if c != ' ':
+                return_obj["bboxes"].append((c, upper_left_x, upper_left_y, w, h))
+                draw_boxes = Draw(image_with_boxes)
+                draw_boxes.rectangle((upper_left_x, upper_left_y, upper_left_x+w, upper_left_y+h), outline ="red")
             offset = offset + w + random.randint(-rand, 0)
 
         if width > self._width:
             image = image.resize((self._width, self._height))
+            image_with_boxes = image_with_boxes.resize((self._width, self._height))
 
-        return image
+        if for_training:
+            return_obj["final"] = image
+            return_obj["final_with_boxes"] = image_with_boxes
+            return return_obj
+        else:
+            return image
 
-    def generate_image(self, chars):
+    def generate_image(self, chars, for_training=True):
         """Generate the image of the given characters.
 
         :param chars: text to be generated.
         """
         background = random_color(238, 255)
         color = random_color(10, 200, random.randint(220, 255))
-        im = self.create_captcha_image(chars, color, background)
+        
+        if for_training:
+            return_obj = self.create_captcha_image(chars, color, background, for_training=for_training) 
+            im = return_obj["final"]
+            im_boxes = return_obj["final_with_boxes"]
+        else:
+            im = self.create_captcha_image(chars, color, background)
         self.create_noise_dots(im, color)
         self.create_noise_curve(im, color)
         im = im.filter(ImageFilter.SMOOTH)
-        return im
+        self.create_noise_dots(im_boxes, color)
+        self.create_noise_curve(im_boxes, color)
+        im_boxes = im_boxes.filter(ImageFilter.SMOOTH)
+
+        if for_training:
+            return_obj["final"] = im
+            return_obj["final_with_boxes"] = im_boxes
+            return return_obj
+        else:
+            return im
 
 
 def random_color(start, end, opacity=None):
