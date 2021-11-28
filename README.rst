@@ -1,3 +1,8 @@
+This is a forked version of the lepture/captcha repo.
+Just added a feature: return bounding boxes along with the captcha image. This is especially useful for training object detection models.
+
+=======
+
 Captcha
 =======
 
