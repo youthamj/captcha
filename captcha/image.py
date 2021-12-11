@@ -247,13 +247,15 @@ class ImageCaptcha(_Captcha):
             offset = offset + w + random.randint(-rand, 0)
 
         if width > self._width:
+            print("HIIIIIIIIIIIIIIIIIIII")
             image = image.resize((self._width, self._height))
             image_with_boxes = image_with_boxes.resize((self._width, self._height))
             bboxes = return_obj["bboxes"]
-            resize_ratio = self._width/width
+            resize_ratio_w = self._width/width
             for i, bbox in enumerate(bboxes):
-                bbox = (c, upper_left_x, upper_left_y, w, h)
-                bboxes[i] = (c, upper_left_x*resize_ratio, upper_left_y*resize_ratio, w*resize_ratio, h*resize_ratio)
+                (bbox_c, bbox_upper_left_x, bbox_upper_left_y, bbox_w, bbox_h) = bbox 
+                bboxes[i] = (bbox_c, bbox_upper_left_x*resize_ratio_w, bbox_upper_left_y, bbox_w*resize_ratio_w, bbox_h)
+            return_obj["bboxes"] = bboxes
 
         if for_training:
             return_obj["final"] = image
