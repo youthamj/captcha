@@ -1,3 +1,20 @@
+This is a forked version of the lepture/captcha repo.
+Just added a feature: return bounding boxes along with the captcha image. This is especially useful for training object detection models.
+
+You can use this feature by calling the ``generate_with_boxes`` method instead of the usual ``generate`` method.
+
+Bounding boxes returned are in the form of a list of tuples, one for each bounding box similar to the following:
+
+``(character, x1, y1, w, h)``
+
+| where ``character`` is the label,
+| ``x1`` is the x-coordinate of the top-left corner,
+| ``x2`` is the y-coordinate of the top-left corner,
+| ``w`` is the width of the bounding box,
+| ``h`` is the height of the bounding box
+
+=======
+
 Captcha
 =======
 
