@@ -247,7 +247,6 @@ class ImageCaptcha(_Captcha):
             offset = offset + w + random.randint(-rand, 0)
 
         if width > self._width:
-            print("HIIIIIIIIIIIIIIIIIIII")
             image = image.resize((self._width, self._height))
             image_with_boxes = image_with_boxes.resize((self._width, self._height))
             bboxes = return_obj["bboxes"]
